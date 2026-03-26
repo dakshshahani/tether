@@ -9,35 +9,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: "#f7f1e7",
-        "bg-deep": "#eadfce",
-        surface: "#fffaf2",
-        "surface-strong": "#f6ecdd",
-        ink: "#172436",
-        "ink-soft": "#45576d",
-        line: "#d5c3aa",
-        accent: "#193044",
-        "accent-soft": "#f6b74a",
-        error: "#b53a38",
+        border: "hsl(0 0% 89%)",
+        background: "hsl(0 0% 100%)",
+        foreground: "hsl(0 0% 9%)",
+        muted: "hsl(0 0% 96%)",
+        "muted-foreground": "hsl(0 0% 45%)",
+        accent: "hsl(0 0% 96%)",
+        "accent-foreground": "hsl(0 0% 9%)",
       },
       fontFamily: {
-        fraunces: ["var(--font-fraunces)", "serif"],
-        "ibm-plex-mono": ["var(--font-ibm-plex-mono)", "monospace"],
+        sans: ["var(--font-fraunces)", "system-ui", "sans-serif"],
+        mono: ["var(--font-ibm-plex-mono)", "monospace"],
       },
       keyframes: {
-        "vault-fade": {
+        "fade-in": {
           "0%": {
             opacity: "0",
-            transform: "translateY(5px)",
+            transform: "translateY(10px)",
           },
           "100%": {
             opacity: "1",
             transform: "translateY(0)",
           },
         },
+        "slide-in": {
+          "0%": {
+            transform: "translateX(-100%)",
+          },
+          "100%": {
+            transform: "translateX(0)",
+          },
+        },
       },
       animation: {
-        "vault-fade": "vault-fade 200ms ease-out",
+        "fade-in": "fade-in 200ms ease-out",
+        "slide-in": "slide-in 300ms ease-out",
       },
     },
   },

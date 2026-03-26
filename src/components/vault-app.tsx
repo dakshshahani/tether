@@ -5,6 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { VaultFileResponse, VaultNode, VaultTreeResponse } from "@/lib/types";
 import { buildWikiLookup, resolveMarkdownLink, transformObsidianMarkdown } from "@/lib/obsidian";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface ApiErrorPayload {
   error?: string;
@@ -20,6 +22,7 @@ interface TreeBranchProps {
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
   onSelectFile: (path: string) => void;
+  onClose: () => void;
 }
 
 function statusMessage(error: unknown): string {
@@ -46,9 +49,10 @@ function TreeBranch({
   expandedFolders,
   onToggleFolder,
   onSelectFile,
+  onClose,
 }: TreeBranchProps) {
   return (
-    <ul className="list-none m-0 p-0" role={depth === 0 ? "tree" : "group"}>
+    <ul className="list-none m-0 p-0">
       {nodes.map((node) => {
         if (node.kind === "folder") {
           const expanded = expandedFolders.has(node.path);
@@ -57,14 +61,14 @@ function TreeBranch({
             <li key={node.path || "root"} role="treeitem" aria-expanded={expanded} aria-selected={false}>
               <button
                 type="button"
-                className="w-full border-0 bg-transparent text-left flex gap-1.5 items-center min-h-[30px] font-ibm-plex-mono text-[0.8rem] text-ink font-medium"
-                style={{ paddingLeft: `${depth * 14 + 12}px` }}
+                className="w-full text-left flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm"
+                style={{ paddingLeft: `${depth * 16 + 8}px` }}
                 onClick={() => onToggleFolder(node.path)}
               >
-                <span className="w-3.5 text-ink-soft" aria-hidden>
-                  {expanded ? "▾" : "▸"}
+                <span className="text-muted-foreground text-xs">
+                  {expanded ? "▼" : "▶"}
                 </span>
-                <span>{node.name}</span>
+                <span className="font-medium">{node.name}</span>
               </button>
               {expanded ? (
                 <TreeBranch
@@ -74,6 +78,7 @@ function TreeBranch({
                   expandedFolders={expandedFolders}
                   onToggleFolder={onToggleFolder}
                   onSelectFile={onSelectFile}
+                  onClose={onClose}
                 />
               ) : null}
             </li>
@@ -85,16 +90,17 @@ function TreeBranch({
           <li key={node.path} role="treeitem" aria-selected={isSelected}>
             <button
               type="button"
-              className={`w-full border-0 bg-transparent text-left flex gap-1.5 items-center min-h-[30px] font-ibm-plex-mono text-[0.8rem] text-ink ${
-                isSelected ? "bg-accent-soft/30 border-l-2 border-accent" : ""
+              className={`w-full text-left flex items-center gap-2 py-1.5 px-2 rounded transition-colors text-sm ${
+                isSelected ? "bg-accent font-medium" : "hover:bg-muted"
               }`}
-              style={{ paddingLeft: `${depth * 14 + 12}px` }}
-              onClick={() => onSelectFile(node.path)}
+              style={{ paddingLeft: `${depth * 16 + 8}px` }}
+              onClick={() => {
+                onSelectFile(node.path);
+                onClose();
+              }}
             >
-              <span className="w-3.5 text-ink-soft" aria-hidden>
-                •
-              </span>
-              <span>{node.name}</span>
+              <span className="text-muted-foreground text-xs">•</span>
+              <span className="truncate">{node.name}</span>
             </button>
           </li>
         );
@@ -112,6 +118,7 @@ export function VaultApp() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const markdownPaths = useMemo(() => {
     return new Set((treeData?.files ?? []).map((item) => item.path));
@@ -266,109 +273,168 @@ export function VaultApp() {
   const canRefresh = syncState === "idle";
 
   return (
-    <div className="w-[min(1100px,calc(100%-1.25rem))] mx-auto my-3 md:mt-6 p-3.5 md:p-4 border border-line rounded-[20px] bg-surface/95 shadow-[0_30px_70px_-50px_rgb(25,48,68,0.7),0_4px_24px_-14px_rgba(0,0,0,0.3)]">
-      <header className="flex justify-between gap-3 items-start px-1.5 pt-2 pb-4">
-        <div>
-          <p className="m-0 uppercase tracking-[0.16em] text-[0.66rem] text-ink-soft font-ibm-plex-mono">
-            Tether Vault
-          </p>
-          <h1 className="my-1 text-[clamp(1.2rem,2.4vw,1.6rem)] leading-tight">
-            {treeData?.repository ?? "GitHub Vault"}
-          </h1>
-          <p className="m-0 text-ink-soft text-[0.84rem]">
-            Auto-sync on open + foreground. Private repo only.
-          </p>
+    <div className="min-h-screen flex flex-col bg-white">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white border-b border-border">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </Button>
+            <div className="hidden lg:block">
+              <h1 className="text-lg font-semibold">{treeData?.repository ?? "Vault"}</h1>
+            </div>
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={!canRefresh}
+            className="text-sm"
+          >
+            {syncState === "idle" ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+              </svg>
+            ) : null}
+            {syncState === "idle" ? "Sync" : "Syncing..."}
+          </Button>
         </div>
-        <button
-          type="button"
-          className="appearance-none border border-accent/50 bg-gradient-to-b from-[#22435f] to-accent text-white font-ibm-plex-mono text-[0.8rem] rounded-full py-2 px-3.5 min-w-[108px] disabled:opacity-70"
-          onClick={onRefresh}
-          disabled={!canRefresh}
-        >
-          {syncState === "idle" ? "Pull latest" : "Syncing..."}
-        </button>
       </header>
 
       {treeError ? (
-        <p className="text-error font-ibm-plex-mono text-[0.78rem] my-1.5">
-          Could not load vault: {treeError}
-        </p>
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200">
+          <p className="text-sm text-red-800">Could not load vault: {treeError}</p>
+        </div>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3.5">
-        <aside className="border border-line rounded-[14px] bg-surface-strong/95 p-2 px-1 max-h-[40vh] md:max-h-[calc(100vh-180px)] overflow-auto">
-          <div className="flex justify-between items-baseline gap-3 px-2.5 pb-2">
-            <h2 className="m-0 text-[0.88rem] uppercase tracking-wider font-ibm-plex-mono">
-              Files
-            </h2>
-            <p className="m-0 text-ink-soft font-ibm-plex-mono text-[0.7rem]">
-              {treeData?.files.length ?? 0} markdown notes
-            </p>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:block w-64 border-r border-border overflow-y-auto">
+          <div className="p-4">
+            <div className="mb-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Files
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {treeData?.files.length ?? 0} notes
+              </p>
+            </div>
+
+            {syncState === "loading" && !treeData ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : null}
+
+            {treeData ? (
+              <TreeBranch
+                nodes={treeData.tree}
+                depth={0}
+                selectedPath={activePath}
+                expandedFolders={expandedFolders}
+                onToggleFolder={onToggleFolder}
+                onSelectFile={onSelectFile}
+                onClose={() => {}}
+              />
+            ) : null}
           </div>
-
-          {syncState === "loading" && !treeData ? <p>Loading your vault...</p> : null}
-
-          {treeData ? (
-            <TreeBranch
-              nodes={treeData.tree}
-              depth={0}
-              selectedPath={activePath}
-              expandedFolders={expandedFolders}
-              onToggleFolder={onToggleFolder}
-              onSelectFile={onSelectFile}
-            />
-          ) : null}
         </aside>
 
-        <main className="border border-line rounded-[14px] bg-surface-strong/95 min-h-[60vh] md:min-h-[calc(100vh-180px)] p-3 overflow-auto">
-          <div className="border-b border-dashed border-line pb-2.5 mb-3.5">
-            <h2 className="m-0 text-[0.88rem] uppercase tracking-wider font-ibm-plex-mono">
-              {activeFile?.path || "Choose a markdown file"}
-            </h2>
-            <p className="m-0 text-ink-soft font-ibm-plex-mono text-[0.7rem]">
-              {activeFile?.syncedAt ? `Synced ${new Date(activeFile.syncedAt).toLocaleString()}` : ""}
-            </p>
-          </div>
+        {/* Mobile Sidebar */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          {sidebarOpen ? (
+            <SheetContent side="left">
+              <SheetHeader>
+                <div className="flex items-center justify-between">
+                  <SheetTitle>Files</SheetTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </Button>
+                </div>
+              </SheetHeader>
+              
+              <div className="p-4 overflow-y-auto" style={{ height: "calc(100vh - 80px)" }}>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {treeData?.files.length ?? 0} notes
+                </p>
 
-          {loadingFile ? <p>Loading markdown...</p> : null}
-          {fileError ? <p className="text-error font-ibm-plex-mono text-[0.78rem]">{fileError}</p> : null}
-
-          {!loadingFile && !fileError && activeFile ? (
-            <article className="prose-vault">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: ({ href, children, ...props }) => {
-                    const currentPath = activeFile.path;
-                    const target = href ?? "";
-                    const resolved = resolveMarkdownLink(currentPath, target);
-
-                    const resolvedPath = resolved ? markdownPathLookup.get(resolved.toLowerCase()) ?? null : null;
-
-                    if (resolvedPath && markdownPaths.has(resolvedPath)) {
-                      return (
-                        <button
-                          type="button"
-                          className="border-0 bg-transparent text-accent underline p-0 font-[inherit] cursor-pointer"
-                          onClick={() => onSelectFile(resolvedPath)}
-                        >
-                          {children}
-                        </button>
-                      );
-                    }
-
-                    return (
-                      <a {...props} href={href} target="_blank" rel="noreferrer">
-                        {children}
-                      </a>
-                    );
-                  },
-                }}
-              >
-                {renderedMarkdown}
-              </ReactMarkdown>
-            </article>
+                {treeData ? (
+                  <TreeBranch
+                    nodes={treeData.tree}
+                    depth={0}
+                    selectedPath={activePath}
+                    expandedFolders={expandedFolders}
+                    onToggleFolder={onToggleFolder}
+                    onSelectFile={onSelectFile}
+                    onClose={() => setSidebarOpen(false)}
+                  />
+                ) : null}
+              </div>
+            </SheetContent>
           ) : null}
+        </Sheet>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 py-8 lg:px-8">
+            {loadingFile ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : null}
+            
+            {fileError ? (
+              <p className="text-sm text-red-600">{fileError}</p>
+            ) : null}
+
+            {!loadingFile && !fileError && activeFile ? (
+              <article className="prose animate-fade-in">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ href, children, ...props }) => {
+                      const currentPath = activeFile.path;
+                      const target = href ?? "";
+                      const resolved = resolveMarkdownLink(currentPath, target);
+
+                      const resolvedPath = resolved ? markdownPathLookup.get(resolved.toLowerCase()) ?? null : null;
+
+                      if (resolvedPath && markdownPaths.has(resolvedPath)) {
+                        return (
+                          <button
+                            type="button"
+                            className="text-foreground underline decoration-muted-foreground underline-offset-2 hover:decoration-foreground cursor-pointer bg-transparent border-0 p-0 font-inherit"
+                            onClick={() => onSelectFile(resolvedPath)}
+                          >
+                            {children}
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <a {...props} href={href} target="_blank" rel="noreferrer">
+                          {children}
+                        </a>
+                      );
+                    },
+                  }}
+                >
+                  {renderedMarkdown}
+                </ReactMarkdown>
+              </article>
+            ) : null}
+          </div>
         </main>
       </div>
     </div>
