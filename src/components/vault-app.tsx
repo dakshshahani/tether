@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { VaultFileResponse, VaultNode, VaultTreeResponse } from "@/lib/types";
 import { buildWikiLookup, resolveMarkdownLink, transformObsidianMarkdown } from "@/lib/obsidian";
+import { parseFrontmatter, formatFrontmatterDisplay } from "@/lib/frontmatter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -145,10 +146,19 @@ export function VaultApp() {
 
   const renderedMarkdown = useMemo(() => {
     if (!activeFile) {
-      return "";
+      return { content: "", frontmatter: null };
     }
 
-    return transformObsidianMarkdown(activeFile.content, wikiLookup);
+    // Parse frontmatter first
+    const parsed = parseFrontmatter(activeFile.content);
+    
+    // Transform Obsidian markdown on the content (without frontmatter)
+    const transformedContent = transformObsidianMarkdown(parsed.content, wikiLookup);
+
+    return {
+      content: transformedContent,
+      frontmatter: formatFrontmatterDisplay(parsed.frontmatter),
+    };
   }, [activeFile, wikiLookup]);
 
   const fetchTree = useCallback(async (reason: "initial" | "refresh") => {
@@ -519,6 +529,42 @@ export function VaultApp() {
 
             {!loadingFile && !fileError && activeFile ? (
               <article className="prose animate-fade-in bg-card rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] border border-border">
+                {/* Frontmatter Header */}
+                {renderedMarkdown.frontmatter && (
+                  <div className="not-prose mb-6 pb-4 border-b border-border text-sm text-muted-foreground flex flex-wrap items-center gap-2">
+                    {renderedMarkdown.frontmatter.date && (
+                      <span className="flex items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        {renderedMarkdown.frontmatter.date}
+                      </span>
+                    )}
+                    {renderedMarkdown.frontmatter.tags && (
+                      <span className="flex items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                          <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                        {renderedMarkdown.frontmatter.tags}
+                      </span>
+                    )}
+                    {renderedMarkdown.frontmatter.author && (
+                      <span className="flex items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        {renderedMarkdown.frontmatter.author}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Markdown Content */}
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -549,7 +595,7 @@ export function VaultApp() {
                     },
                   }}
                 >
-                  {renderedMarkdown}
+                  {renderedMarkdown.content}
                 </ReactMarkdown>
               </article>
             ) : null}
