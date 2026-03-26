@@ -48,7 +48,7 @@ function TreeBranch({
   onSelectFile,
 }: TreeBranchProps) {
   return (
-    <ul className="vault-tree-list" role={depth === 0 ? "tree" : "group"}>
+    <ul className="list-none m-0 p-0" role={depth === 0 ? "tree" : "group"}>
       {nodes.map((node) => {
         if (node.kind === "folder") {
           const expanded = expandedFolders.has(node.path);
@@ -57,14 +57,14 @@ function TreeBranch({
             <li key={node.path || "root"} role="treeitem" aria-expanded={expanded} aria-selected={false}>
               <button
                 type="button"
-                className="vault-tree-row vault-folder-row"
+                className="w-full border-0 bg-transparent text-left flex gap-1.5 items-center min-h-[30px] font-ibm-plex-mono text-[0.8rem] text-ink font-medium"
                 style={{ paddingLeft: `${depth * 14 + 12}px` }}
                 onClick={() => onToggleFolder(node.path)}
               >
-                <span className="vault-icon" aria-hidden>
+                <span className="w-3.5 text-ink-soft" aria-hidden>
                   {expanded ? "▾" : "▸"}
                 </span>
-                <span className="vault-folder">{node.name}</span>
+                <span>{node.name}</span>
               </button>
               {expanded ? (
                 <TreeBranch
@@ -85,11 +85,13 @@ function TreeBranch({
           <li key={node.path} role="treeitem" aria-selected={isSelected}>
             <button
               type="button"
-              className={`vault-tree-row vault-file-row${isSelected ? " selected" : ""}`}
+              className={`w-full border-0 bg-transparent text-left flex gap-1.5 items-center min-h-[30px] font-ibm-plex-mono text-[0.8rem] text-ink ${
+                isSelected ? "bg-accent-soft/30 border-l-2 border-accent" : ""
+              }`}
               style={{ paddingLeft: `${depth * 14 + 12}px` }}
               onClick={() => onSelectFile(node.path)}
             >
-              <span className="vault-icon" aria-hidden>
+              <span className="w-3.5 text-ink-soft" aria-hidden>
                 •
               </span>
               <span>{node.name}</span>
@@ -264,27 +266,44 @@ export function VaultApp() {
   const canRefresh = syncState === "idle";
 
   return (
-    <div className="vault-app-shell">
-      <header className="vault-header">
+    <div className="w-[min(1100px,calc(100%-1.25rem))] mx-auto my-3 md:mt-6 p-3.5 md:p-4 border border-line rounded-[20px] bg-surface/95 shadow-[0_30px_70px_-50px_rgb(25,48,68,0.7),0_4px_24px_-14px_rgba(0,0,0,0.3)]">
+      <header className="flex justify-between gap-3 items-start px-1.5 pt-2 pb-4">
         <div>
-          <p className="vault-kicker">Tether Vault</p>
-          <h1>{treeData?.repository ?? "GitHub Vault"}</h1>
-          <p className="vault-subtle">
+          <p className="m-0 uppercase tracking-[0.16em] text-[0.66rem] text-ink-soft font-ibm-plex-mono">
+            Tether Vault
+          </p>
+          <h1 className="my-1 text-[clamp(1.2rem,2.4vw,1.6rem)] leading-tight">
+            {treeData?.repository ?? "GitHub Vault"}
+          </h1>
+          <p className="m-0 text-ink-soft text-[0.84rem]">
             Auto-sync on open + foreground. Private repo only.
           </p>
         </div>
-        <button type="button" className="vault-refresh" onClick={onRefresh} disabled={!canRefresh}>
+        <button
+          type="button"
+          className="appearance-none border border-accent/50 bg-gradient-to-b from-[#22435f] to-accent text-white font-ibm-plex-mono text-[0.8rem] rounded-full py-2 px-3.5 min-w-[108px] disabled:opacity-70"
+          onClick={onRefresh}
+          disabled={!canRefresh}
+        >
           {syncState === "idle" ? "Pull latest" : "Syncing..."}
         </button>
       </header>
 
-      {treeError ? <p className="vault-error">Could not load vault: {treeError}</p> : null}
+      {treeError ? (
+        <p className="text-error font-ibm-plex-mono text-[0.78rem] my-1.5">
+          Could not load vault: {treeError}
+        </p>
+      ) : null}
 
-      <div className="vault-layout">
-        <aside className="vault-sidebar">
-          <div className="vault-sidebar-head">
-            <h2>Files</h2>
-            <p>{treeData?.files.length ?? 0} markdown notes</p>
+      <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3.5">
+        <aside className="border border-line rounded-[14px] bg-surface-strong/95 p-2 px-1 max-h-[40vh] md:max-h-[calc(100vh-180px)] overflow-auto">
+          <div className="flex justify-between items-baseline gap-3 px-2.5 pb-2">
+            <h2 className="m-0 text-[0.88rem] uppercase tracking-wider font-ibm-plex-mono">
+              Files
+            </h2>
+            <p className="m-0 text-ink-soft font-ibm-plex-mono text-[0.7rem]">
+              {treeData?.files.length ?? 0} markdown notes
+            </p>
           </div>
 
           {syncState === "loading" && !treeData ? <p>Loading your vault...</p> : null}
@@ -301,17 +320,21 @@ export function VaultApp() {
           ) : null}
         </aside>
 
-        <main className="vault-main">
-          <div className="vault-main-head">
-            <h2>{activeFile?.path || "Choose a markdown file"}</h2>
-            <p>{activeFile?.syncedAt ? `Synced ${new Date(activeFile.syncedAt).toLocaleString()}` : ""}</p>
+        <main className="border border-line rounded-[14px] bg-surface-strong/95 min-h-[60vh] md:min-h-[calc(100vh-180px)] p-3 overflow-auto">
+          <div className="border-b border-dashed border-line pb-2.5 mb-3.5">
+            <h2 className="m-0 text-[0.88rem] uppercase tracking-wider font-ibm-plex-mono">
+              {activeFile?.path || "Choose a markdown file"}
+            </h2>
+            <p className="m-0 text-ink-soft font-ibm-plex-mono text-[0.7rem]">
+              {activeFile?.syncedAt ? `Synced ${new Date(activeFile.syncedAt).toLocaleString()}` : ""}
+            </p>
           </div>
 
           {loadingFile ? <p>Loading markdown...</p> : null}
-          {fileError ? <p className="vault-error">{fileError}</p> : null}
+          {fileError ? <p className="text-error font-ibm-plex-mono text-[0.78rem]">{fileError}</p> : null}
 
           {!loadingFile && !fileError && activeFile ? (
-            <article className="vault-markdown">
+            <article className="prose-vault">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -326,7 +349,7 @@ export function VaultApp() {
                       return (
                         <button
                           type="button"
-                          className="vault-md-link"
+                          className="border-0 bg-transparent text-accent underline p-0 font-[inherit] cursor-pointer"
                           onClick={() => onSelectFile(resolvedPath)}
                         >
                           {children}
