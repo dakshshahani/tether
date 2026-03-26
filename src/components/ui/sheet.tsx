@@ -38,8 +38,17 @@ export function SheetContent({
 }) {
   return (
     <div className={`fixed inset-0 z-50 ${className}`}>
-      <div className="fixed inset-0 bg-black/50" />
-      <div className={`fixed inset-y-0 ${side === "left" ? "left-0" : "right-0"} z-50 w-[280px] bg-white shadow-lg`}>
+      {/* Backdrop with animation */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-in-backdrop" />
+      
+      {/* Drawer with slide animation */}
+      <div className={`
+        fixed inset-y-0 z-50 w-[280px] 
+        bg-card border-r border-border
+        shadow-2xl
+        animate-slide-in-left
+        ${side === "left" ? "left-0" : "right-0"}
+      `}>
         {children}
       </div>
     </div>
@@ -47,7 +56,11 @@ export function SheetContent({
 }
 
 export function SheetHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`px-4 py-4 border-b ${className}`}>{children}</div>;
+  return (
+    <div className={`px-4 py-4 border-b border-border bg-muted/30 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 export function SheetTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
