@@ -8,6 +8,7 @@ import { buildWikiLookup, resolveMarkdownLink, transformObsidianMarkdown } from 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SearchDialog, SearchDialogContent, SearchDialogHeader, SearchDialogBody } from "@/components/ui/search-dialog";
 
 interface ApiErrorPayload {
   error?: string;
@@ -122,6 +123,9 @@ export function VaultApp() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ path: string; name: string; content: string; matches: number }>>([]);
 
   const markdownPaths = useMemo(() => {
     return new Set((treeData?.files ?? []).map((item) => item.path));
@@ -165,24 +169,14 @@ export function VaultApp() {
       const payload = (await response.json()) as VaultTreeResponse;
       setTreeData(payload);
 
+      // Don't auto-expand folders - start collapsed
       setExpandedFolders((prev) => {
+        // Keep existing expanded folders if user has interacted
         if (prev.size > 0) {
           return prev;
         }
-
-        const next = new Set<string>();
-        for (const file of payload.files) {
-          const segments = file.path.split("/");
-          if (segments.length < 2) {
-            continue;
-          }
-          let folderPath = "";
-          for (let index = 0; index < segments.length - 1; index += 1) {
-            folderPath = folderPath ? `${folderPath}/${segments[index]}` : segments[index];
-            next.add(folderPath);
-          }
-        }
-        return next;
+        // Start with all folders collapsed
+        return new Set<string>();
       });
 
       setActivePath((prevPath) => {
@@ -273,6 +267,82 @@ export function VaultApp() {
     fetchTree("refresh");
   }, [fetchTree]);
 
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !treeData) {
+      setSearchResults([]);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const results: Array<{ path: string; name: string; content: string; matches: number }> = [];
+
+    // Search through all files
+    for (const file of treeData.files) {
+      try {
+        const response = await fetch(`/api/vault/file?path=${encodeURIComponent(file.path)}`, {
+          cache: "no-store",
+        });
+        
+        if (response.ok) {
+          const fileData = (await response.json()) as VaultFileResponse;
+          const content = fileData.content.toLowerCase();
+          
+          // Count matches
+          const matches = (content.match(new RegExp(lowerQuery, 'g')) || []).length;
+          
+          if (matches > 0) {
+            // Get a snippet with the match
+            const index = content.indexOf(lowerQuery);
+            const start = Math.max(0, index - 50);
+            const end = Math.min(content.length, index + lowerQuery.length + 50);
+            const snippet = fileData.content.substring(start, end);
+            
+            results.push({
+              path: file.path,
+              name: file.name,
+              content: snippet,
+              matches,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to search file ${file.path}:`, error);
+      }
+    }
+
+    // Sort by number of matches
+    results.sort((a, b) => b.matches - a.matches);
+    setSearchResults(results);
+  }, [treeData]);
+
+  // Keyboard shortcut for search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  // Search when query changes
+  useEffect(() => {
+    if (searchOpen && searchQuery) {
+      const timer = setTimeout(() => {
+        performSearch(searchQuery);
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(timer);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, searchOpen, performSearch]);
+
   const canRefresh = syncState === "idle";
 
   return (
@@ -297,6 +367,17 @@ export function VaultApp() {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              title="Search (⌘K)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </Button>
             <ThemeToggle />
             <Button
               variant="outline"
@@ -469,6 +550,93 @@ export function VaultApp() {
           </div>
         </main>
       </div>
+
+      {/* Search Dialog */}
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <SearchDialogContent>
+          <SearchDialogHeader>
+            <div className="flex items-center gap-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent border-0 outline-none text-lg placeholder:text-muted-foreground"
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </SearchDialogHeader>
+          
+          <SearchDialogBody>
+            {searchQuery && searchResults.length === 0 && (
+              <div className="p-8 text-center text-muted-foreground">
+                <p className="text-sm">No results found for "{searchQuery}"</p>
+              </div>
+            )}
+            
+            {searchResults.length > 0 && (
+              <div className="divide-y divide-border">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.path}
+                    onClick={() => {
+                      onSelectFile(result.path);
+                      setSearchOpen(false);
+                      setSearchQuery("");
+                    }}
+                    className="w-full text-left p-4 hover:bg-accent transition-colors group"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground flex-shrink-0">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                        </svg>
+                        <span className="font-medium text-sm truncate group-hover:text-accent-foreground">
+                          {result.name}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                        {result.matches} {result.matches === 1 ? 'match' : 'matches'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 pl-6">
+                      ...{result.content}...
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {!searchQuery && (
+              <div className="p-8 text-center">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3 text-muted-foreground">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                <p className="text-sm text-muted-foreground mb-1">Search through all your notes</p>
+                <p className="text-xs text-muted-foreground">
+                  Press <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">⌘K</kbd> to open
+                </p>
+              </div>
+            )}
+          </SearchDialogBody>
+        </SearchDialogContent>
+      </SearchDialog>
     </div>
   );
 }
