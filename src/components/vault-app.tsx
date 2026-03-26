@@ -178,19 +178,6 @@ export function VaultApp() {
         // Start with all folders collapsed
         return new Set<string>();
       });
-
-      setActivePath((prevPath) => {
-        if (!prevPath && payload.files.length > 0) {
-          return payload.files[0].path;
-        }
-
-        if (prevPath && !payload.files.some((file) => file.path === prevPath)) {
-          setActiveFile(null);
-          return payload.files[0]?.path ?? null;
-        }
-
-        return prevPath;
-      });
     } catch (error) {
       setTreeError(statusMessage(error));
     } finally {
@@ -224,12 +211,31 @@ export function VaultApp() {
     fetchTree("initial");
   }, [fetchTree]);
 
+  // Load last opened note from localStorage on mount
+  useEffect(() => {
+    if (!treeData) {
+      return;
+    }
+
+    const savedPath = localStorage.getItem("lastOpenedNotePath");
+    if (savedPath && treeData.files.some((file) => file.path === savedPath)) {
+      setActivePath(savedPath);
+    } else if (treeData.files.length > 0) {
+      // Fallback to first file if no saved path or saved path doesn't exist
+      setActivePath(treeData.files[0].path);
+    } else {
+      setActivePath(null);
+    }
+  }, [treeData]);
+
   useEffect(() => {
     if (!treeData || !activePath) {
       return;
     }
 
     openFile(activePath);
+    // Save to localStorage whenever a note is opened
+    localStorage.setItem("lastOpenedNotePath", activePath);
   }, [activePath, openFile, treeData]);
 
   useEffect(() => {
