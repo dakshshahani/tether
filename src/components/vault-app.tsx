@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import type { VaultFileResponse, VaultNode, VaultTreeResponse } from "@/lib/types";
 import { buildWikiLookup, resolveMarkdownLink, transformObsidianMarkdown } from "@/lib/obsidian";
 import { parseFrontmatter, formatFrontmatterDisplay } from "@/lib/frontmatter";
@@ -10,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog, SearchDialogContent, SearchDialogHeader, SearchDialogBody } from "@/components/ui/search-dialog";
+import "katex/dist/katex.min.css";
 
 interface ApiErrorPayload {
   error?: string;
@@ -566,7 +569,8 @@ export function VaultApp() {
 
                 {/* Markdown Content */}
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
                   components={{
                     a: ({ href, children, ...props }) => {
                       const currentPath = activeFile.path;
