@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog, SearchDialogContent, SearchDialogHeader, SearchDialogBody } from "@/components/ui/search-dialog";
+import { Welcome } from "@/components/welcome";
 import "katex/dist/katex.min.css";
 
 interface ApiErrorPayload {
@@ -232,11 +233,10 @@ export function VaultApp() {
 
     const savedPath = localStorage.getItem("lastOpenedNotePath");
     if (savedPath && treeData.files.some((file) => file.path === savedPath)) {
+      // Restore the last opened note
       setActivePath(savedPath);
-    } else if (treeData.files.length > 0) {
-      // Fallback to first file if no saved path or saved path doesn't exist
-      setActivePath(treeData.files[0].path);
     } else {
+      // Show welcome screen if no saved path (first-time user or cleared state)
       setActivePath(null);
     }
   }, [treeData]);
@@ -515,6 +515,11 @@ export function VaultApp() {
         {/* Main Content - Paper-like texture */}
         <main className="flex-1 overflow-y-auto bg-background">
           <div className="max-w-4xl mx-auto px-6 py-12 lg:px-12">
+            {/* Welcome screen when no note is selected */}
+            {!activePath && !loadingFile && treeData ? (
+              <Welcome totalNotes={treeData.files.length} />
+            ) : null}
+
             {loadingFile ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
